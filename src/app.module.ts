@@ -1,11 +1,13 @@
+import { RedisService } from './redis/redis.service';
+import { RedisModule } from './redis/radis.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ParismaModule } from './parisma/parisma.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [ParismaModule],
+  imports: [RedisModule, PrismaModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [RedisService, AppService],
 })
 export class AppModule {}
