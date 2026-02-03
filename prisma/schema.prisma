@@ -1,16 +1,19 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ScopeType {
+  SELF
+  TEAM
+  DEPARTMENT
+  DEPARTMENT_SUBTREE
+  RELATED_DEPARTMENTS
+  ORG_WIDE
 }
 
 enum DepartmentRelationType {
@@ -20,124 +23,99 @@ enum DepartmentRelationType {
   SERVES
 }
 
-enum ScopeType {
-  SELF
-  DEPARTMENT
-  SUBTREE
-  RELATED_DEPARTMENTS
-  ORG_WIDE
-}
-
-model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  firstName     String
-  lastName      String
-  isActive      Boolean  @default(true)
-
-  departmentId  String?
-  department    Department? @relation(fields: [departmentId], references: [id])
-
-  managerId     String?
-  manager       User?    @relation("UserManager", fields: [managerId], references: [id])
-  reports       User[]   @relation("UserManager")
-
-  refreshTokens RefreshToken[]
-  roles         UserRole[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
 
 model Department {
   id        String   @id @default(uuid())
   name      String
-  parentId  String?
-  parent    Department? @relation("DeptTree", fields: [parentId], references: [id])
-  children  Department[] @relation("DeptTree")
 
-  fromRelations DepartmentRelation[] @relation("FromDept")
-  toRelations   DepartmentRelation[] @relation("ToDept")
+  parentId  String?
+  parent    Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children  Department[] @relation("DepartmentHierarchy")
 
   users     User[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@unique([name, parentId])
+  outgoingRelations DepartmentRelation[] @relation("FromDepartment")
+  incomingRelations DepartmentRelation[] @relation("ToDepartment")
+
+  createdAt DateTime @default(now())
 }
 
+
 model DepartmentRelation {
-  id                 String   @id @default(uuid())
-  fromDepartmentId   String
-  toDepartmentId     String
-  type               DepartmentRelationType
+  id   String @id @default(uuid())
 
-  fromDepartment     Department @relation("FromDept", fields: [fromDepartmentId], references: [id])
-  toDepartment       Department @relation("ToDept", fields: [toDepartmentId], references: [id])
+  fromDepartmentId String
+  toDepartmentId   String
 
-  createdAt          DateTime @default(now())
+  type DepartmentRelationType
+
+  fromDepartment Department @relation("FromDepartment", fields: [fromDepartmentId], references: [id])
+  toDepartment   Department @relation("ToDepartment", fields: [toDepartmentId], references: [id])
 
   @@unique([fromDepartmentId, toDepartmentId, type])
 }
 
-model Role {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  parentId  String?
-  parent    Role?    @relation("RoleTree", fields: [parentId], references: [id])
-  children  Role[]   @relation("RoleTree")
 
-  grants    RoleGrant[]
-  users     UserRole[]
+model User {
+  id    String @id @default(uuid())
+  email String @unique
+  name  String
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  managerId String?
+  manager   User?  @relation("UserHierarchy", fields: [managerId], references: [id])
+  subordinates User[] @relation("UserHierarchy")
+
+  roles UserRole[]
+
   createdAt DateTime @default(now())
 }
 
-model Permission {
-  id        String   @id @default(uuid())
-  action    String   // e.g. read, update, approve, adjust
-  resource  String   // e.g. employee, inventory, order
-  createdAt DateTime @default(now())
+model Role {
+  id   String @id @default(uuid())
+  name String @unique
 
-  grants    RoleGrant[]
+  permissions RolePermission[]
+  users UserRole[]
+}
+
+model Permission {
+  id       String @id @default(uuid())
+  action   String
+  resource String
+
+  roles RolePermission[]
 
   @@unique([action, resource])
 }
 
-model RoleGrant {
-  id            String   @id @default(uuid())
-  roleId        String
-  permissionId  String
-  scope         ScopeType
-  relationType  DepartmentRelationType? // only used if scope=RELATED_DEPARTMENTS
-  constraints   Json? // future: location filters, etc.
-
-  role          Role @relation(fields: [roleId], references: [id])
-  permission    Permission @relation(fields: [permissionId], references: [id])
-
-  @@unique([roleId, permissionId, scope, relationType])
-}
 
 model UserRole {
-  id     String @id @default(uuid())
   userId String
   roleId String
 
-  user   User @relation(fields: [userId], references: [id])
-  role   Role @relation(fields: [roleId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
 
-  @@unique([userId, roleId])
+  @@id([userId, roleId])
 }
 
-model RefreshToken {
-  id           String   @id @default(uuid())
-  userId       String
-  tokenHash    String
-  revokedAt    DateTime?
-  expiresAt    DateTime
 
-  user         User @relation(fields: [userId], references: [id])
+model RolePermission {
+  id String @id @default(uuid())
 
-  createdAt    DateTime @default(now())
+  roleId       String
+  permissionId String
 
-  @@index([userId])
+  scope ScopeType
+
+  relationType DepartmentRelationType?
+  constraints  Json?
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
 }

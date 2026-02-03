@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DepartmentRelationType {
+  SUPPORTS
+  COLLABORATES
+  AUDITS
+  SERVES
+}
+
+enum ScopeType {
+  SELF
+  DEPARTMENT
+  SUBTREE
+  RELATED_DEPARTMENTS
+  ORG_WIDE
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  isActive      Boolean  @default(true)
+
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+
+  managerId     String?
+  manager       User?    @relation("UserManager", fields: [managerId], references: [id])
+  reports       User[]   @relation("UserManager")
+
+  refreshTokens RefreshToken[]
+  roles         UserRole[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  parent    Department? @relation("DeptTree", fields: [parentId], references: [id])
+  children  Department[] @relation("DeptTree")
+
+  fromRelations DepartmentRelation[] @relation("FromDept")
+  toRelations   DepartmentRelation[] @relation("ToDept")
+
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, parentId])
+}
+
+model DepartmentRelation {
+  id                 String   @id @default(uuid())
+  fromDepartmentId   String
+  toDepartmentId     String
+  type               DepartmentRelationType
+
+  fromDepartment     Department @relation("FromDept", fields: [fromDepartmentId], references: [id])
+  toDepartment       Department @relation("ToDept", fields: [toDepartmentId], references: [id])
+
+  createdAt          DateTime @default(now())
+
+  @@unique([fromDepartmentId, toDepartmentId, type])
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  parentId  String?
+  parent    Role?    @relation("RoleTree", fields: [parentId], references: [id])
+  children  Role[]   @relation("RoleTree")
+
+  grants    RoleGrant[]
+  users     UserRole[]
+  createdAt DateTime @default(now())
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  action    String   // e.g. read, update, approve, adjust
+  resource  String   // e.g. employee, inventory, order
+  createdAt DateTime @default(now())
+
+  grants    RoleGrant[]
+
+  @@unique([action, resource])
+}
+
+model RoleGrant {
+  id            String   @id @default(uuid())
+  roleId        String
+  permissionId  String
+  scope         ScopeType
+  relationType  DepartmentRelationType? // only used if scope=RELATED_DEPARTMENTS
+  constraints   Json? // future: location filters, etc.
+
+  role          Role @relation(fields: [roleId], references: [id])
+  permission    Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId, scope, relationType])
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+model RefreshToken {
+  id           String   @id @default(uuid())
+  userId       String
+  tokenHash    String
+  revokedAt    DateTime?
+  expiresAt    DateTime
+
+  user         User @relation(fields: [userId], references: [id])
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}

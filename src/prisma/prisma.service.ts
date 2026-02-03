@@ -1,15 +1,21 @@
-import { Injectable, OnModuleInit, INestApplication } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
+import { INestApplication, Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+// import { PrismaClient } from '../../prisma/generated/prisma';
 
 @Injectable()
-export class ParismaService extends PrismaClient implements OnModuleInit {
+export class PrismaService extends PrismaClient implements OnModuleInit {
+  constructor() {
+    super(); // یا super({ log: ['query', 'error'] }) اگر خواستی لاگ بگیری
+  }
   async onModuleInit() {
     await this.$connect();
   }
 
-  enableShutdownHooks(app: INestApplication) {
-    this.$on('beforeExit', async () => {
-      await app.close();
+  ableShutdownHooks(app: INestApplication) {
+    process.on('beforeExit', () => {
+      app.close();
     });
   }
 }
