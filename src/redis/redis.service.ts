@@ -1,3 +1,4 @@
+//redis.service.ts
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 
@@ -13,7 +14,17 @@ export class RedisService implements OnModuleDestroy {
   get redis() {
     return this.client;
   }
+  async get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
 
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    if (ttlSeconds) {
+      await this.client.set(key, value, 'EX', ttlSeconds);
+    } else {
+      await this.client.set(key, value);
+    }
+  }
   async onModuleDestroy() {
     await this.client.quit();
   }

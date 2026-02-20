@@ -3,11 +3,15 @@ import { RedisModule } from './redis/radis.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [RedisModule, PrismaModule],
+  imports: [RedisModule],
   controllers: [AppController],
   providers: [RedisService, AppService],
 })
 export class AppModule {}
+// export class AppModule implements NestModule {
+//   configure(consumer: MiddlewareConsumer) {
+//     consumer.apply(SetPostgresSessionMiddleware).forRoutes('*');
+//   }
+// }
