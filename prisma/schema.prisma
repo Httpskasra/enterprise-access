@@ -8,7 +8,9 @@ generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
 }
-
+generator erd {
+  provider = "prisma-erd-generator"
+}
 datasource db {
   provider = "postgresql"
 }
