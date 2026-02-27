@@ -12,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: enterprise_redis
     ports:
       - "6379:6379"

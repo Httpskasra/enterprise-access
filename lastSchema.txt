@@ -5,9 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
-  moduleFormat    = "cjs"
 }
 generator erd {
   provider = "prisma-erd-generator"
@@ -69,15 +68,15 @@ model User {
   email String @unique
   name  String
 
+  password     String          // hashed with bcrypt
+  refreshToken String? 
+
   departmentId String
   department   Department @relation(fields: [departmentId], references: [id])
 
   managerId String?
   manager   User?  @relation("UserHierarchy", fields: [managerId], references: [id])
   subordinates User[] @relation("UserHierarchy")
-
-  password     String        
-  refreshToken String? 
 
   roles UserRole[]
 
@@ -130,3 +129,26 @@ model RolePermission {
 
   @@unique([roleId, permissionId])
 }
+
+
+
+
+
+
+
+
+
+
+
+import 'dotenv/config';
+import { defineConfig } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+  },
+  datasource: {
+    url: process.env['DATABASE_URL'],
+  },
+});
